@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitra Rating - Smart NFC & Cloud Digital Business Card</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#080c14',
+                        cardDark: '#0f172a',
+                        neonCyan: '#06b6d4',
+                        neonPurple: '#a855f7',
+                        neonPink: '#ec4899',
+                        gold: '#eab308'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Canvas Confetti for Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #080c14;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .card-container {
+            perspective: 1200px;
+        }
+
+        .card-inner {
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+
+        .card-face {
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #080c14;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        @keyframes pulseGlow {
+
+            0%,
+            100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.6;
+                transform: scale(1.08);
+            }
+        }
+
+        .animate-glow {
+            animation: pulseGlow 5s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-white">
+
+    <!-- Ambient Glow Backgrounds -->
+    <div
+        class="fixed top-0 left-1/4 w-[500px] h-[500px] bg-cyan-600/15 rounded-full blur-[140px] pointer-events-none animate-glow">
+    </div>
+    <div class="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-[140px] pointer-events-none animate-glow"
+        style="animation-delay: 2.5s;"></div>
+
+    <!-- Header Navigation -->
+    <header
+        class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="switchToEditor()">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                <i class="fa-solid fa-id-card text-white text-lg"></i>
+            </div>
+            <div>
+                <h1
+                    class="font-bold text-lg tracking-tight bg-gradient-to-r from-cyan-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+                    MitraRatingCard</h1>
+                <p class="text-[11px] text-slate-400">Cloud NFC & QR Business Ecosystem</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2.5">
+            <button onclick="openProfileManager()"
+                class="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 transition flex items-center space-x-2 shadow-sm">
+                <i class="fa-solid fa-folder-open text-cyan-400"></i>
+                <span class="hidden sm:inline">Daftar Kartu (<span id="savedCount">0</span>)</span>
+            </button>
+            <button onclick="openAnalyticsModal()"
+                class="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 transition flex items-center space-x-2 shadow-sm">
+                <i class="fa-solid fa-chart-line text-purple-400"></i>
+                <span class="hidden sm:inline">Analitik</span>
+            </button>
+            <button onclick="publishToCloud()"
+                class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 transition flex items-center space-x-2">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <span id="publishBtnText">Simpan ke Cloud</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace (Editor / Viewer Container) -->
+    <main id="appMainContainer"
+        class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- LEFT COLUMN: Editor Form (7 Cols) -->
+        <section id="editorSection" class="lg:col-span-7 glass-panel rounded-2xl p-5 lg:p-6 shadow-2xl space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                        <i class="fa-solid fa-pen-nib text-sm"></i>
+                    </div>
+                    <h2 class="font-semibold text-base text-slate-100">Editor Kartu Digital Pro</h2>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="loadDemoData()"
+                        class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-400 mr-1"></i> Demo Isi
+                    </button>
+                    <button onclick="resetForm()"
+                        class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition">
+                        <i class="fa-solid fa-rotate-right text-rose-400 mr-1"></i> Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div
+                class="grid grid-cols-4 gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+                <button onclick="switchTab('general')" id="tab-general"
+                    class="py-2 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition text-center truncate px-1"><i
+                        class="fa-solid fa-user mr-1"></i> Utama</button>
+                <button onclick="switchTab('design')" id="tab-design"
+                    class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition text-center truncate px-1"><i
+                        class="fa-solid fa-palette mr-1"></i> Desain</button>
+                <button onclick="switchTab('socials')" id="tab-socials"
+                    class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition text-center truncate px-1"><i
+                        class="fa-solid fa-share-nodes mr-1"></i> Sosial</button>
+                <button onclick="switchTab('nfc')" id="tab-nfc"
+                    class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition text-center truncate px-1"><i
+                        class="fa-solid fa-wifi mr-1"></i> NFC/QR</button>
+            </div>
+
+            <!-- TAB 1: General Info -->
+            <div id="panel-general" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Nama Lengkap</label>
+                        <input type="text" id="inputName" oninput="updateCard()" placeholder="cth. Dr. Arisandi Pratama"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Jabatan / Gelar</label>
+                        <input type="text" id="inputTitle" oninput="updateCard()"
+                            placeholder="cth. Head of AI Innovation"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Perusahaan / Organisasi</label>
+                        <input type="text" id="inputCompany" oninput="updateCard()" placeholder="cth. CyberSphere AI"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">URL Foto Profil (Avatar)</label>
+                        <input type="text" id="inputAvatar" oninput="updateCard()"
+                            placeholder="https://images.unsplash.com/..."
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">URL Banner / Sampul Kartu</label>
+                    <input type="text" id="inputCover" oninput="updateCard()"
+                        placeholder="https://images.unsplash.com/photo-..."
+                        class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Bio Singkat</label>
+                    <textarea id="inputBio" oninput="updateCard()" rows="2"
+                        placeholder="Membangun ekosistem teknologi masa depan..."
+                        class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Nomor WhatsApp</label>
+                        <input type="text" id="inputPhone" oninput="updateCard()" placeholder="+62812345678"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Alamat Email</label>
+                        <input type="email" id="inputEmail" oninput="updateCard()" placeholder="arisandi@cybersphere.id"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Lokasi / Kota</label>
+                        <input type="text" id="inputLocation" oninput="updateCard()" placeholder="Jakarta, Indonesia"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Design & Theme Customizer -->
+            <div id="panel-design" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-2">Pilih Tema Visual Kartu</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="cardTemplate" value="cyber" checked onchange="updateCard()"
+                                class="peer sr-only">
+                            <div
+                                class="p-3 rounded-xl border border-slate-700 bg-slate-900 peer-checked:border-cyan-500 peer-checked:bg-cyan-500/10 text-center transition">
+                                <div
+                                    class="w-full h-8 rounded bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 mb-2 shadow">
+                                </div>
+                                <span class="text-xs font-semibold text-slate-200">Neon Cyber</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="cardTemplate" value="platinum" onchange="updateCard()"
+                                class="peer sr-only">
+                            <div
+                                class="p-3 rounded-xl border border-slate-700 bg-slate-900 peer-checked:border-cyan-500 peer-checked:bg-cyan-500/10 text-center transition">
+                                <div
+                                    class="w-full h-8 rounded bg-gradient-to-r from-slate-300 via-slate-100 to-slate-400 mb-2 shadow">
+                                </div>
+                                <span class="text-xs font-semibold text-slate-200">Platinum</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="cardTemplate" value="gold" onchange="updateCard()"
+                                class="peer sr-only">
+                            <div
+                                class="p-3 rounded-xl border border-slate-700 bg-slate-900 peer-checked:border-cyan-500 peer-checked:bg-cyan-500/10 text-center transition">
+                                <div
+                                    class="w-full h-8 rounded bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 mb-2 shadow">
+                                </div>
+                                <span class="text-xs font-semibold text-slate-200">Royal Gold</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="cardTemplate" value="glass" onchange="updateCard()"
+                                class="peer sr-only">
+                            <div
+                                class="p-3 rounded-xl border border-slate-700 bg-slate-900 peer-checked:border-cyan-500 peer-checked:bg-cyan-500/10 text-center transition">
+                                <div
+                                    class="w-full h-8 rounded bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 mb-2 shadow">
+                                </div>
+                                <span class="text-xs font-semibold text-slate-200">Corp Glass</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Warna Aksen Tombol & Glow</label>
+                        <div class="flex items-center space-x-3">
+                            <input type="color" id="inputAccentColor" value="#06b6d4" onchange="updateCard()"
+                                class="w-12 h-10 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer p-1">
+                            <span class="text-xs text-slate-400">Sesuaikan warna highlight</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Gaya Tipografi</label>
+                        <select id="inputFont" onchange="updateCard()"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                            <option value="Inter">Inter (Modern Sans)</option>
+                            <option value="serif">Classic Serif</option>
+                            <option value="monospace">JetBrains Monospace</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Social Links Customizer -->
+            <div id="panel-socials" class="space-y-4 hidden">
+                <p class="text-xs text-slate-400">Tambahkan tautan profil media sosial dan link kustom Anda.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5"><i
+                                class="fa-brands fa-linkedin text-blue-400 mr-1"></i> LinkedIn URL</label>
+                        <input type="text" id="inputLinkedin" oninput="updateCard()"
+                            placeholder="https://linkedin.com/in/..."
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5"><i
+                                class="fa-brands fa-instagram text-pink-400 mr-1"></i> Instagram URL</label>
+                        <input type="text" id="inputInstagram" oninput="updateCard()"
+                            placeholder="https://instagram.com/..."
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5"><i
+                                class="fa-brands fa-github text-slate-200 mr-1"></i> GitHub URL</label>
+                        <input type="text" id="inputGithub" oninput="updateCard()" placeholder="https://github.com/..."
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5"><i
+                                class="fa-brands fa-tiktok text-cyan-400 mr-1"></i> TikTok / YouTube URL</label>
+                        <input type="text" id="inputTiktok" oninput="updateCard()" placeholder="https://tiktok.com/@..."
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5"><i
+                                class="fa-solid fa-globe text-cyan-400 mr-1"></i> Website / Portofolio Utama</label>
+                        <input type="text" id="inputWebsite" oninput="updateCard()" placeholder="https://cybersphere.id"
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5"><i
+                                class="fa-solid fa-link text-purple-400 mr-1"></i> Link Kustom (Label & URL)</label>
+                        <input type="text" id="inputCustomLink" oninput="updateCard()"
+                            placeholder="Booking Jadwal Meeting | https://cal.com/..."
+                            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: NFC & QR Integration -->
+            <div id="panel-nfc" class="space-y-4 hidden">
+                <div
+                    class="p-4 rounded-xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-800/40 space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                            <i class="fa-solid fa-wifi text-lg animate-pulse"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-sm text-cyan-300">NFC Tag Writer & vCard 3.0 Export</h3>
+                            <p class="text-xs text-slate-400">Tulis data kontak langsung ke stiker NFC fisik atau unduh
+                                vCard.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-2">
+                        <button onclick="writeNfcTag()"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition flex items-center space-x-2 shadow-lg shadow-cyan-500/20">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>Tulis ke NFC Tag (WebNFC)</span>
+                        </button>
+                        <button onclick="downloadVCard()"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition flex items-center space-x-2">
+                            <i class="fa-solid fa-address-book"></i>
+                            <span>Download vCard (.vcf)</span>
+                        </button>
+                    </div>
+                    <p id="nfcStatus" class="text-xs text-slate-400 italic"></p>
+                </div>
+
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+                    <h4 class="font-semibold text-xs text-slate-300">QR Code Instan & Cloud Short Link</h4>
+                    <p class="text-xs text-slate-400">QR Code mengarah langsung ke URL Cloud unik kartu Anda.</p>
+                    <div class="flex items-center space-x-4">
+                        <div id="editorQrBox"
+                            class="bg-white p-2 rounded-lg shadow w-28 h-28 flex items-center justify-center"></div>
+                        <div class="space-y-2 w-full">
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="shortIdDisplay" readonly
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-cyan-300"
+                                    placeholder="Belum disimpan ke cloud">
+                                <button onclick="copyCloudLink()"
+                                    class="px-3 py-1.5 text-xs bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold rounded-lg transition whitespace-nowrap">Salin
+                                    Link</button>
+                            </div>
+                            <button onclick="downloadQRCode()"
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-download text-cyan-400"></i>
+                                <span>Download QR (PNG)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Live 3D Interactive Card Preview (5 Cols) -->
+        <section id="previewSection" class="lg:col-span-5 flex flex-col items-center space-y-5 sticky top-20">
+            <div class="w-full flex items-center justify-between">
+                <span
+                    class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+                    <i class="fa-solid fa-eye text-cyan-400"></i>
+                    <span id="previewHeaderTitle">Live 3D Preview Kartu</span>
+                </span>
+                <button onclick="flipCard()"
+                    class="px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-cyan-300 border border-slate-700/80 rounded-xl transition flex items-center space-x-1.5 shadow">
+                    <i class="fa-solid fa-repeat"></i>
+                    <span>Balik Kartu (Depan/Belakang)</span>
+                </button>
+            </div>
+
+            <!-- Card Container with 3D Tilt Effect -->
+            <div id="cardWrapper" class="card-container w-full max-w-sm h-[500px] cursor-pointer select-none"
+                onclick="flipCard()">
+                <div id="cardInner" class="card-inner w-full h-full relative rounded-3xl shadow-2xl shadow-cyan-950/60">
+
+                    <!-- FRONT FACE -->
+                    <div id="cardFrontFace"
+                        class="card-face rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-700/60 flex flex-col justify-between">
+                        <!-- Banner Cover Header -->
+                        <div class="h-32 w-full relative overflow-hidden bg-slate-800">
+                            <img id="previewCoverImg"
+                                src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=300&fit=crop"
+                                class="w-full h-full object-cover opacity-80"
+                                onerror="this.src='https://placehold.co/600x200/1e293b/06b6d4?text=NexusCard'">
+                            <div
+                                class="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/30 to-slate-950">
+                            </div>
+                            <div
+                                class="absolute top-3 right-3 w-7 h-7 rounded-full bg-slate-950/60 backdrop-blur-md flex items-center justify-center border border-white/20">
+                                <i class="fa-solid fa-wifi text-xs text-cyan-300 animate-pulse"></i>
+                            </div>
+                        </div>
+
+                        <!-- Card Center Profile -->
+                        <div class="relative px-6 pb-6 pt-2 flex flex-col items-center text-center space-y-2.5 -mt-14">
+                            <div class="relative">
+                                <img id="previewAvatarImg"
+                                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&crop=faces"
+                                    alt="Avatar"
+                                    class="w-24 h-24 rounded-full object-cover border-4 border-slate-950 shadow-2xl"
+                                    onerror="this.src='https://placehold.co/150x150/1e293b/06b6d4?text=Foto'">
+                                <div
+                                    class="absolute bottom-0 right-0 w-6 h-6 bg-emerald-500 border-2 border-slate-950 rounded-full flex items-center justify-center text-[10px] text-white">
+                                    <i class="fa-solid fa-check"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 id="previewName" class="font-bold text-lg text-white leading-tight">Dr. Arisandi
+                                    Pratama</h3>
+                                <p id="previewTitle" class="text-xs text-cyan-300 font-medium mt-0.5">Head of AI
+                                    Innovation</p>
+                                <p id="previewCompany" class="text-[11px] text-slate-400 mt-0.5">CyberSphere AI</p>
+                            </div>
+                            <p id="previewBio" class="text-xs text-slate-300 line-clamp-2 px-1">Membangun ekosistem
+                                teknologi masa depan.</p>
+                        </div>
+
+                        <!-- Card Bottom Quick Action Bar -->
+                        <div class="px-6 pb-5 space-y-3">
+                            <div id="previewQuickButtons"
+                                class="grid grid-cols-4 gap-2 pt-2 border-t border-slate-800/80">
+                                <a id="btnPhone" href="#" onclick="event.stopPropagation(); trackClick('whatsapp')"
+                                    class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 flex items-center justify-center transition border border-slate-700/50"><i
+                                        class="fa-brands fa-whatsapp"></i></a>
+                                <a id="btnEmail" href="#" onclick="event.stopPropagation(); trackClick('email')"
+                                    class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 flex items-center justify-center transition border border-slate-700/50"><i
+                                        class="fa-solid fa-envelope"></i></a>
+                                <a id="btnLinkedin" href="#" onclick="event.stopPropagation(); trackClick('linkedin')"
+                                    class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 flex items-center justify-center transition border border-slate-700/50"><i
+                                        class="fa-brands fa-linkedin"></i></a>
+                                <a id="btnWebsite" href="#" onclick="event.stopPropagation(); trackClick('website')"
+                                    class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 flex items-center justify-center transition border border-slate-700/50"><i
+                                        class="fa-solid fa-globe"></i></a>
+                            </div>
+                            <div class="text-center">
+                                <span class="text-[10px] text-slate-500 font-medium tracking-widest uppercase">Tap untuk
+                                    balik kartu</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BACK FACE -->
+                    <div id="cardBackFace"
+                        class="card-face card-back rounded-3xl p-6 flex flex-col justify-between overflow-hidden shadow-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border border-slate-700/60">
+                        <div class="absolute -top-12 -left-12 w-36 h-36 bg-pink-500/20 rounded-full blur-2xl"></div>
+                        <div class="absolute -bottom-12 -right-12 w-36 h-36 bg-cyan-500/20 rounded-full blur-2xl"></div>
+
+                        <div class="relative z-10 flex items-center justify-between">
+                            <span class="text-xs font-bold tracking-widest text-purple-400 uppercase">NexusCloud
+                                vCard</span>
+                            <i class="fa-solid fa-qrcode text-purple-400 text-lg"></i>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col items-center justify-center my-auto space-y-3">
+                            <div class="bg-white p-3 rounded-2xl shadow-xl">
+                                <div id="previewMiniQr" class="w-32 h-32 flex items-center justify-center"></div>
+                            </div>
+                            <p class="text-xs text-slate-300 font-medium">Scan untuk Simpan Kontak & Profil Cloud</p>
+                        </div>
+
+                        <div
+                            class="relative z-10 flex items-center justify-between pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
+                            <span id="previewBackName">Dr. Arisandi Pratama</span>
+                            <span class="text-cyan-400 font-semibold">NFC Cloud Ready</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Action Buttons Toolbar -->
+            <div id="viewerActionToolbar" class="w-full grid grid-cols-2 gap-3">
+                <button onclick="downloadVCard()"
+                    class="py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/25 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-address-book text-sm"></i>
+                    <span>Simpan Kontak (.vcf)</span>
+                </button>
+                <button onclick="switchToEditor()" id="createOwnCardBtn"
+                    class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-xs border border-slate-700 transition flex items-center justify-center space-x-2 shadow">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                    <span>Buat Kartu Sendiri</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto py-6 text-center text-xs text-slate-500 border-t border-slate-900">
+        <p>NexusCard Ecosystem &bull; Firebase Cloud Firestore & WebNFC Enabled</p>
+    </footer>
+
+    <!-- MODAL: Saved Profiles Manager -->
+    <div id="profileManagerModal"
+        class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-slate-800 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div
+                        class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-100">Daftar Kartu Tersimpan</h3>
+                        <p class="text-xs text-slate-400">Kelola dan muat profil digital lokal & cloud</p>
+                    </div>
+                </div>
+                <button onclick="closeProfileManager()"
+                    class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="savedProfilesList" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+                <button onclick="createNewProfile()"
+                    class="px-4 py-2 text-xs font-semibold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition flex items-center space-x-2 shadow">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Buat Kartu Baru</span>
+                </button>
+                <button onclick="closeProfileManager()"
+                    class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Analytics Dashboard -->
+    <div id="analyticsModal"
+        class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-800 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div
+                        class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-100">Statistik & Analitik Kartu</h3>
+                        <p class="text-xs text-slate-400">Performa interaksi profil cloud Anda</p>
+                    </div>
+                </div>
+                <button onclick="closeAnalyticsModal()"
+                    class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-center">
+                    <span class="text-2xl font-black text-cyan-400" id="statViews">0</span>
+                    <p class="text-xs text-slate-400 mt-1">Total Views</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-center">
+                    <span class="text-2xl font-black text-purple-400" id="statClicks">0</span>
+                    <p class="text-xs text-slate-400 mt-1">Total Aksi Klik</p>
+                </div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+                <h4 class="text-xs font-semibold text-slate-300">Rincian Klik Tautan:</h4>
+                <div class="space-y-1.5 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                    <div class="flex justify-between"><span>WhatsApp:</span> <strong id="statWa"
+                            class="text-slate-200">0</strong></div>
+                    <div class="flex justify-between"><span>Email:</span> <strong id="statEmail"
+                            class="text-slate-200">0</strong></div>
+                    <div class="flex justify-between"><span>LinkedIn:</span> <strong id="statLi"
+                            class="text-slate-200">0</strong></div>
+                    <div class="flex justify-between"><span>Website:</span> <strong id="statWeb"
+                            class="text-slate-200">0</strong></div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick="closeAnalyticsModal()"
+                    class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div
+            class="glass-panel px-4 py-3 rounded-2xl border border-cyan-500/40 shadow-2xl flex items-center space-x-3 bg-slate-900/95">
+            <div id="toastIcon"
+                class="w-7 h-7 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+                <h4 id="toastTitle" class="font-semibold text-xs text-slate-100">Berhasil!</h4>
+                <p id="toastMsg" class="text-[11px] text-slate-400">Aksi berhasil dilakukan.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK v10 & App Script Integration -->
+    <!-- Firebase SDK v10 & App Script Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase handles
+        window.firebaseApp = null;
+        window.db = null;
+        window.auth = null;
+        window.isFirebaseReady = false;
+        window.appId = 'digitalcard-9a2a5';
+
+        // Konfigurasi Firebase Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyDs9Ixxg0vmb7CrGpjJ_oHk14hAk-5iZy8",
+            authDomain: "digitalcard-9a2a5.firebaseapp.com",
+            projectId: "digitalcard-9a2a5",
+            storageBucket: "digitalcard-9a2a5.firebasestorage.app",
+            messagingSenderId: "1036924984689",
+            appId: "1:1036924984689:web:3477b0bcc8fbacdf2daad0",
+            measurementId: "G-2GDZZYPMBR"
+        };
+
+        try {
+            window.firebaseApp = initializeApp(firebaseConfig);
+            window.db = getFirestore(window.firebaseApp);
+            window.auth = getAuth(window.firebaseApp);
+
+            // Login anonim agar bisa langsung baca/tulis database
+            signInAnonymously(window.auth).then(() => {
+                window.isFirebaseReady = true;
+                console.log("Firebase Terhubung ke Cloud!");
+            }).catch((err) => {
+                console.error("Firebase Auth Error:", err);
+            });
+        } catch (e) {
+            console.warn("Firebase running in LocalStorage fallback mode:", e);
+        }
+
+        // Initialize Firebase with fallback mock if environment config is missing
+        try {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-card-app-default';
+            window.appId = appId;
+
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                window.firebaseApp = initializeApp(firebaseConfig);
+                window.db = getFirestore(window.firebaseApp);
+                window.auth = getAuth(window.firebaseApp);
+
+                // Auth before operations
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    signInWithCustomToken(window.auth, token).then(() => {
+                        window.isFirebaseReady = true;
+                    }).catch(() => {
+                        signInAnonymously(window.auth).then(() => { window.isFirebaseReady = true; });
+                    });
+                } else {
+                    signInAnonymously(window.auth).then(() => { window.isFirebaseReady = true; });
+                }
+            }
+        } catch (e) {
+            console.warn("Firebase running in LocalStorage fallback mode:", e);
+        }
+    </script>
+
+    <script>
+        // Storage & State Management
+        const STORAGE_KEY = 'nexus_cards_local_v1';
+        let currentCardId = null;
+        let isFlipped = false;
+        let isViewerMode = false;
+
+        // Default Demo Data
+        const demoProfile = {
+            id: 'card-demo-1',
+            name: 'Dr. Arisandi Pratama',
+            title: 'Head of AI Innovation',
+            company: 'CyberSphere AI',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&crop=faces',
+            cover: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=300&fit=crop',
+            bio: 'Membangun ekosistem teknologi AI & IoT mutakhir untuk masa depan enterprise.',
+            phone: '+628123456789',
+            email: 'arisandi@cybersphere.id',
+            location: 'Jakarta, Indonesia',
+            template: 'cyber',
+            accentColor: '#06b6d4',
+            font: 'Inter',
+            linkedin: 'https://linkedin.com/in/arisandipratama',
+            instagram: 'https://instagram.com/arisandiai',
+            github: 'https://github.com/arisandiai',
+            tiktok: 'https://tiktok.com/@arisanditech',
+            website: 'https://cybersphere.id',
+            customLink: 'Booking Meeting | https://cal.com/arisandi',
+            views: 124,
+            clicks: 45,
+            clickDetails: { whatsapp: 18, email: 12, linkedin: 10, website: 5 }
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            initLocalStorageCards();
+
+            // Check URL query parameters for ?id=xyz
+            const urlParams = new URLSearchParams(window.location.search);
+            const cardIdParam = urlParams.get('id');
+
+            if (cardIdParam) {
+                await loadCardFromCloudOrLocal(cardIdParam);
+            } else {
+                let cards = getStoredCards();
+                if (cards.length === 0) {
+                    cards.push(demoProfile);
+                    saveStoredCards(cards);
+                }
+                loadCardToForm(cards[0]);
+                updateCard();
+            }
+        });
+
+        // Tab Switcher
+        function switchTab(tabName) {
+            ['general', 'design', 'socials', 'nfc'].forEach(t => {
+                document.getElementById(`panel-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).className = "py-2 rounded-lg text-slate-400 hover:text-slate-200 transition text-center truncate px-1";
+            });
+            document.getElementById(`panel-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).className = "py-2 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition text-center truncate px-1";
+        }
+
+        // Get Form Data
+        function getFormData() {
+            const templateEl = document.querySelector('input[name="cardTemplate"]:checked');
+            return {
+                id: currentCardId || 'card-' + Math.random().toString(36).substring(2, 9),
+                name: document.getElementById('inputName').value || 'Nama Anda',
+                title: document.getElementById('inputTitle').value || 'Jabatan / Profesi',
+                company: document.getElementById('inputCompany').value || 'Perusahaan',
+                avatar: document.getElementById('inputAvatar').value || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&crop=faces',
+                cover: document.getElementById('inputCover').value || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=300&fit=crop',
+                bio: document.getElementById('inputBio').value || 'Bio profil digital Anda...',
+                phone: document.getElementById('inputPhone').value || '',
+                email: document.getElementById('inputEmail').value || '',
+                location: document.getElementById('inputLocation').value || '',
+                template: templateEl ? templateEl.value : 'cyber',
+                accentColor: document.getElementById('inputAccentColor').value || '#06b6d4',
+                font: document.getElementById('inputFont').value || 'Inter',
+                linkedin: document.getElementById('inputLinkedin').value || '',
+                instagram: document.getElementById('inputInstagram').value || '',
+                github: document.getElementById('inputGithub').value || '',
+                tiktok: document.getElementById('inputTiktok').value || '',
+                website: document.getElementById('inputWebsite').value || '',
+                customLink: document.getElementById('inputCustomLink').value || '',
+                views: currentLoadedCard?.views || 0,
+                clicks: currentLoadedCard?.clicks || 0,
+                clickDetails: currentLoadedCard?.clickDetails || { whatsapp: 0, email: 0, linkedin: 0, website: 0 }
+            };
+        }
+
+        let currentLoadedCard = null;
+
+        function loadCardToForm(card) {
+            currentLoadedCard = card;
+            currentCardId = card.id;
+            document.getElementById('inputName').value = card.name || '';
+            document.getElementById('inputTitle').value = card.title || '';
+            document.getElementById('inputCompany').value = card.company || '';
+            document.getElementById('inputAvatar').value = card.avatar || '';
+            document.getElementById('inputCover').value = card.cover || '';
+            document.getElementById('inputBio').value = card.bio || '';
+            document.getElementById('inputPhone').value = card.phone || '';
+            document.getElementById('inputEmail').value = card.email || '';
+            document.getElementById('inputLocation').value = card.location || '';
+            document.getElementById('inputAccentColor').value = card.accentColor || '#06b6d4';
+            document.getElementById('inputFont').value = card.font || 'Inter';
+            document.getElementById('inputLinkedin').value = card.linkedin || '';
+            document.getElementById('inputInstagram').value = card.instagram || '';
+            document.getElementById('inputGithub').value = card.github || '';
+            document.getElementById('inputTiktok').value = card.tiktok || '';
+            document.getElementById('inputWebsite').value = card.website || '';
+            document.getElementById('inputCustomLink').value = card.customLink || '';
+
+            const radio = document.querySelector(`input[name="cardTemplate"][value="${card.template || 'cyber'}"]`);
+            if (radio) radio.checked = true;
+        }
+
+        // Real-time Preview Update
+        function updateCard() {
+            const data = getFormData();
+
+            document.getElementById('previewName').innerText = data.name;
+            document.getElementById('previewBackName').innerText = data.name;
+            document.getElementById('previewTitle').innerText = data.title;
+            document.getElementById('previewCompany').innerText = data.company;
+            document.getElementById('previewBio').innerText = data.bio;
+            document.getElementById('previewAvatarImg').src = data.avatar;
+            document.getElementById('previewCoverImg').src = data.cover;
+
+            const frontFace = document.getElementById('cardFrontFace');
+            const backFace = document.getElementById('cardBackFace');
+            frontFace.style.fontFamily = data.font;
+            backFace.style.fontFamily = data.font;
+
+            // Quick Actions
+            document.getElementById('btnPhone').href = data.phone ? `https://wa.me/${data.phone.replace(/[^0-9]/g, '')}` : '#';
+            document.getElementById('btnEmail').href = data.email ? `mailto:${data.email}` : '#';
+            document.getElementById('btnLinkedin').href = data.linkedin || '#';
+            document.getElementById('btnWebsite').href = data.website || '#';
+
+            // QR Codes
+            const cloudUrl = `${window.location.origin}${window.location.pathname}?id=${data.id}`;
+            document.getElementById('shortIdDisplay').value = cloudUrl;
+
+            const editorQrBox = document.getElementById('editorQrBox');
+            editorQrBox.innerHTML = '';
+            new QRCode(editorQrBox, { text: cloudUrl, width: 96, height: 96, colorDark: "#080c14", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+
+            const miniQr = document.getElementById('previewMiniQr');
+            miniQr.innerHTML = '';
+            new QRCode(miniQr, { text: cloudUrl, width: 110, height: 110, colorDark: "#080c14", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        }
+
+        function flipCard() {
+            isFlipped = !isFlipped;
+            const cardInner = document.getElementById('cardInner');
+            if (isFlipped) cardInner.classList.add('flipped');
+            else cardInner.classList.remove('flipped');
+        }
+
+        // Cloud Persistence & Firebase Integration
+        async function publishToCloud() {
+            const data = getFormData();
+
+            // Save locally first
+            let cards = getStoredCards();
+            const idx = cards.findIndex(c => c.id === data.id);
+            if (idx >= 0) cards[idx] = data;
+            else cards.push(data);
+            saveStoredCards(cards);
+
+            // Save to Firestore if available
+            if (window.db && window.isFirebaseReady) {
+                try {
+                    const appId = window.appId;
+                    const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', `card_${data.id}`);
+                    await setDoc(docRef, data, { merge: true });
+                    showToast('Tersimpan di Cloud!', 'Kartu berhasil disinkronkan ke Firebase Cloud Firestore.');
+                } catch (err) {
+                    console.error("Cloud save error:", err);
+                    showToast('Tersimpan Lokal', 'Disimpan secara lokal. Firebase tidak aktif.');
+                }
+            } else {
+                showToast('Tersimpan Lokal', 'Kartu tersimpan permanen di browser.');
+            }
+
+            confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+        }
+
+        // Load Card from Cloud or Local
+        async function loadCardFromCloudOrLocal(id) {
+            let cardData = null;
+
+            // Try Firebase first
+            if (window.db) {
+                try {
+                    const appId = window.appId;
+                    const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', `card_${id}`);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        cardData = docSnap.data();
+                        // Increment view count
+                        await updateDoc(docRef, { views: increment(1) });
+                        cardData.views = (cardData.views || 0) + 1;
+                    }
+                } catch (e) {
+                    console.warn("Cloud fetch error, checking local:", e);
+                }
+            }
+
+            // Fallback to local storage if not in cloud
+            if (!cardData) {
+                const cards = getStoredCards();
+                cardData = cards.find(c => c.id === id);
+            }
+
+            if (cardData) {
+                // Enter Viewer Mode
+                isViewerMode = true;
+                loadCardToForm(cardData);
+                updateCard();
+
+                // Adjust UI for visitor
+                document.getElementById('editorSection').classList.add('hidden');
+                document.getElementById('previewSection').className = "lg:col-span-12 flex flex-col items-center space-y-6 max-w-md mx-auto w-full";
+                document.getElementById('previewHeaderTitle').innerText = "Digital Smart Business Card";
+                showToast('Profil Dimuat', `Menampilkan kartu digital ${cardData.name}`);
+            } else {
+                showToast('Tidak Ditemukan', 'Kartu digital dengan ID tersebut tidak ditemukan.');
+            }
+        }
+
+        // Track Link Clicks
+        async function trackClick(type) {
+            if (!currentLoadedCard) return;
+            currentLoadedCard.clicks = (currentLoadedCard.clicks || 0) + 1;
+            if (!currentLoadedCard.clickDetails) currentLoadedCard.clickDetails = { whatsapp: 0, email: 0, linkedin: 0, website: 0 };
+            currentLoadedCard.clickDetails[type] = (currentLoadedCard.clickDetails[type] || 0) + 1;
+
+            // Update local
+            let cards = getStoredCards();
+            const idx = cards.findIndex(c => c.id === currentLoadedCard.id);
+            if (idx >= 0) {
+                cards[idx] = currentLoadedCard;
+                saveStoredCards(cards);
+            }
+
+            // Update Firestore
+            if (window.db && currentLoadedCard.id) {
+                try {
+                    const appId = window.appId;
+                    const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', `card_${currentLoadedCard.id}`);
+                    await updateDoc(docRef, {
+                        clicks: increment(1),
+                        [`clickDetails.${type}`]: increment(1)
+                    });
+                } catch (e) {
+                    console.error("Analytics click update failed:", e);
+                }
+            }
+        }
+
+        // Switch back to Editor Mode
+        function switchToEditor() {
+            window.location.href = window.location.pathname;
+        }
+
+        // LocalStorage helpers
+        function getStoredCards() {
+            try {
+                const d = localStorage.getItem(STORAGE_KEY);
+                return d ? JSON.parse(d) : [];
+            } catch (e) { return []; }
+        }
+
+        function saveStoredCards(cards) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+            updateSavedCount();
+        }
+
+        function initLocalStorageCards() {
+            let cards = getStoredCards();
+            if (cards.length === 0) {
+                cards.push(demoProfile);
+                saveStoredCards(cards);
+            } else {
+                updateSavedCount();
+            }
+        }
+
+        function updateSavedCount() {
+            const cards = getStoredCards();
+            document.getElementById('savedCount').innerText = cards.length;
+        }
+
+        // vCard Generation (.vcf)
+        function downloadVCard() {
+            const d = getFormData();
+            const vcardStr = `BEGIN:VCARD\nVERSION:3.0\nFN:${d.name}\nTITLE:${d.title}\nORG:${d.company}\nTEL:${d.phone}\nEMAIL:${d.email}\nURL:${d.website}\nNOTE:${d.bio}\nEND:VCARD`;
+            const blob = new Blob([vcardStr], { type: 'text/vcard;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${d.name.replace(/\s+/g, '_')}_contact.vcf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('vCard Diunduh', 'File kontak .vcf berhasil disimpan.');
+        }
+
+        // WebNFC Writer
+        async function writeNfcTag() {
+            const statusEl = document.getElementById('nfcStatus');
+            if ('NDEFWriter' in window) {
+                try {
+                    statusEl.innerText = "Dekatkan stiker/kartu NFC ke perangkat Anda...";
+                    const writer = new NDEFWriter();
+                    const d = getFormData();
+                    const cloudUrl = `${window.location.origin}${window.location.pathname}?id=${d.id}`;
+                    await writer.write({ records: [{ recordType: "url", data: cloudUrl }] });
+                    statusEl.innerText = "Berhasil! URL Cloud sukses ditulis ke NFC tag.";
+                    showToast('NFC Berhasil!', 'URL profil ditulis ke chip NFC.');
+                } catch (err) {
+                    statusEl.innerText = "Gagal menulis NFC: " + err.message;
+                    showToast('Info NFC', 'Perangkat tidak mendukung atau izin ditolak.');
+                }
+            } else {
+                statusEl.innerText = "WebNFC tidak didukung browser ini. Gunakan QR Code / Cloud Link.";
+                showToast('Simulasi NFC', 'Gunakan QR Code atau Salin Link.');
+            }
+        }
+
+        // Profile Manager Modal
+        function openProfileManager() {
+            const cards = getStoredCards();
+            const list = document.getElementById('savedProfilesList');
+            list.innerHTML = '';
+            if (cards.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Belum ada kartu tersimpan.</p>';
+            } else {
+                cards.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition";
+                    div.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <img src="${c.avatar}" class="w-10 h-10 rounded-full object-cover border border-cyan-500/30">
+                            <div>
+                                <h4 class="font-semibold text-xs text-slate-200">${c.name}</h4>
+                                <p class="text-[10px] text-cyan-400">${c.title || c.company}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <button onclick="loadCardToForm(${JSON.stringify(c).replace(/"/g, '&quot;')}); updateCard(); closeProfileManager(); showToast('Dimuat', 'Kartu dimuat ke editor.');" class="px-2.5 py-1 text-xs bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/30">Muat</button>
+                            <button onclick="navigator.clipboard.writeText('${window.location.origin}${window.location.pathname}?id=${c.id}'); showToast('Disalin', 'Link cloud disalin.');" class="p-1.5 text-xs bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/30"><i class="fa-solid fa-link"></i></button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+            document.getElementById('profileManagerModal').classList.remove('hidden');
+        }
+        function closeProfileManager() { document.getElementById('profileManagerModal').classList.add('hidden'); }
+
+        // Analytics Modal
+        function openAnalyticsModal() {
+            const d = currentLoadedCard || getFormData();
+            document.getElementById('statViews').innerText = d.views || 0;
+            document.getElementById('statClicks').innerText = d.clicks || 0;
+            document.getElementById('statWa').innerText = d.clickDetails?.whatsapp || 0;
+            document.getElementById('statEmail').innerText = d.clickDetails?.email || 0;
+            document.getElementById('statLi').innerText = d.clickDetails?.linkedin || 0;
+            document.getElementById('statWeb').innerText = d.clickDetails?.website || 0;
+            document.getElementById('analyticsModal').classList.remove('hidden');
+        }
+        function closeAnalyticsModal() { document.getElementById('analyticsModal').classList.add('hidden'); }
+
+        // QR / Link Helpers
+        function copyCloudLink() {
+            const link = document.getElementById('shortIdDisplay').value;
+            const el = document.createElement('textarea');
+            el.value = link;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast('Tautan Disalin', 'URL Cloud kartu berhasil disalin.');
+        }
+
+        function downloadQRCode() {
+            const canvas = document.querySelector('#editorQrBox canvas');
+            if (!canvas) return;
+            const url = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'nexus_qrcode.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('QR Diunduh', 'Gambar QR Code berhasil diunduh.');
+        }
+
+        function loadDemoData() {
+            loadCardToForm(demoProfile);
+            updateCard();
+            showToast('Demo Dimuat', 'Data contoh berhasil dimuat.');
+        }
+
+        function resetForm() {
+            currentCardId = null;
+            currentLoadedCard = null;
+            document.querySelectorAll('input:not([type="radio"]), textarea').forEach(i => i.value = '');
+            updateCard();
+            showToast('Form Direset', 'Semua isian telah dibersihkan.');
+        }
+
+        function createNewProfile() {
+            resetForm();
+            closeProfileManager();
+            showToast('Kartu Baru', 'Silakan isi form dan simpan ke cloud.');
+        }
+
+        function showToast(title, msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').innerText = title;
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3500);
+        }
+    </script>
+</body>
+
+</html>
